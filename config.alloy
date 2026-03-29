@@ -1,5 +1,5 @@
 prometheus.scrape "eth_bot" {
-  # 注意：现在它们在同一个机器里，直接抓取本机的 8000 端口即可！
+  // 注意：现在它们在同一个机器里，直接抓取本机的 8000 端口即可！
   targets = [{"__address__" = "127.0.0.1:8000"}]
   forward_to = [prometheus.remote_write.grafanacloud.receiver]
   scrape_interval = "15s"
