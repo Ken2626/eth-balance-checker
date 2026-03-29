@@ -1,10 +1,10 @@
 # ETH Balance Checker
 
-A Python-based monitoring bot that tracks Ethereum token balances and sends notifications via Telegram when balances change. Includes comprehensive health monitoring and Docker support.
+A Python-based monitoring bot that tracks Gnosis token balances and sends notifications via Telegram when balances change. Includes comprehensive health monitoring and Docker support.
 
 ## 🚀 Features
 
-- **Real-time Balance Monitoring**: Track multiple Ethereum addresses and tokens
+- **Real-time Balance Monitoring**: Track multiple Gnosis addresses and tokens
 - **Telegram Notifications**: Get instant alerts when balances change
 - **Health Monitoring**: Built-in health check system with web endpoints
 - **Docker Support**: Easy deployment with Docker containers
@@ -51,7 +51,7 @@ A Python-based monitoring bot that tracks Ethereum token balances and sends noti
 
 4. **Configure the bot**
    ```bash
-   # Edit config.json with your addresses and settings
+   # Add your ETHEREUM_ADDRESSES and COINS_LIST to the .env file
    ```
 
 5. **Run the bot**
@@ -70,11 +70,23 @@ A Python-based monitoring bot that tracks Ethereum token balances and sends noti
    ```bash
    docker run -d \
      --name eth-balance-checker \
-     -e INFURA_URL="https://mainnet.infura.io/v3/YOUR_API_KEY" \
+     -e RPC_URL="https://rpc.gnosischain.com/" \
      -e TELEGRAM_BOT_TOKEN="YOUR_BOT_TOKEN" \
      -e TELEGRAM_CHAT_ID="YOUR_CHAT_ID" \
      -p 8000:8000 \
      eth-balance-checker
+   ```
+
+### Method 3: GitHub Container Registry (GHCR)
+
+The repository includes a fully-automated GitHub Actions workflow (`.github/workflows/docker-publish.yml`).
+
+1. Push your code to the `main` branch or push a new tag (e.g., `v1.0.0`) to GitHub.
+2. The GitHub Action will seamlessly build and publish your Docker image to `ghcr.io/<your-username>/eth-balance-checker`.
+3. To pull and run anywhere:
+   ```bash
+   docker pull ghcr.io/<your-username>/eth-balance-checker:latest
+   docker run -d --env-file .env -p 8000:8000 eth-balance-checker:latest
    ```
 
 ## ⚙️ Configuration
@@ -84,26 +96,15 @@ A Python-based monitoring bot that tracks Ethereum token balances and sends noti
 Create a `.env` file with the following variables:
 
 ```env
-# Infura API configuration
-INFURA_URL=https://mainnet.infura.io/v3/YOUR_INFURA_API_KEY
+# RPC API configuration (e.g., Gnosis Chain)
+RPC_URL=https://rpc.gnosischain.com/
 
 # Telegram Bot configuration
 TELEGRAM_BOT_TOKEN=YOUR_TELEGRAM_BOT_TOKEN
 TELEGRAM_CHAT_ID=YOUR_TELEGRAM_CHAT_ID
 ```
 
-### Configuration File (config.json)
 
-```json
-{
-  "ethereum_addresses": [
-    "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045"
-  ],
-  "coins_list": ["usdt", "usdc", "dai"],
-  "checking_interval": 600,
-  "log_level": "INFO"
-}
-```
 
 <details>
   <summary>Tokens list.</summary>

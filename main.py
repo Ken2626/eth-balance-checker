@@ -17,24 +17,36 @@ healthcheck_status = {"eth_rpc_initialized": False, "telegram_bot_initialized": 
 
 # Load configuration
 def load_config():
-    """Load configuration from JSON file and environment variables."""
-    try:
-        with open('config.json', 'r') as f:
-            config = json.load(f)
-    except FileNotFoundError:
-        logger.error("config.json not found. Please create it with the required configuration.")
-        raise
-    except json.JSONDecodeError as e:
-        logger.error(f"Error parsing config.json: {e}")
-        raise
+    """Load configuration from environment variables."""
+    config = {}
+    config['log_level'] = os.getenv('LOG_LEVEL', 'INFO')
     
     # Load sensitive data from environment variables
-    config['infura_url'] = os.getenv('INFURA_URL')
+    # We fallback to INFURA_URL to maintain backward compatibility if user hasn't updated their .env yet
+    config['rpc_url'] = os.getenv('RPC_URL') or os.getenv('INFURA_URL')
     config['bot_token'] = os.getenv('TELEGRAM_BOT_TOKEN')
     config['chat_id'] = os.getenv('TELEGRAM_CHAT_ID')
     
+    # Load lists and integers from environment variables
+    addresses_str = os.getenv('ETHEREUM_ADDRESSES', '')
+    config['ethereum_addresses'] = [a.strip() for a in addresses_str.split(',')] if addresses_str else []
+    
+    coins_str = os.getenv('COINS_LIST', 'XDAI,SDAI,GNO')
+    config['coins_list'] = [c.strip() for c in coins_str.split(',')] if coins_str else []
+    
+    config['checking_interval'] = int(os.getenv('CHECKING_INTERVAL', '86400'))
+    
     # Validate required environment variables
-    required_env_vars = ['INFURA_URL', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_ID']
+    if not config['rpc_url']:
+        logger.error("Missing required environment variable: RPC_URL (or INFURA_URL)")
+        logger.error("Please create a .env file with the required variables. See env.example for reference.")
+        raise ValueError("Missing environment variables: RPC_URL")
+        
+    required_env_vars = ['TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_ID']
+    if not config['ethereum_addresses']:
+        logger.error("Missing required environment variable: ETHEREUM_ADDRESSES")
+        required_env_vars.append('ETHEREUM_ADDRESSES')
+        
     missing_vars = [var for var in required_env_vars if not os.getenv(var)]
     if missing_vars:
         logger.error(f"Missing required environment variables: {', '.join(missing_vars)}")
@@ -58,7 +70,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Get configuration values
-infura_url = config['infura_url']
+rpc_url = config['rpc_url']
 ethereum_addresses = config['ethereum_addresses']
 chat_id = config['chat_id']
 bot_token = config['bot_token']
@@ -69,7 +81,12 @@ previous_balances = {}  # Dictionary to track previous balances for each address
 # Initialize services
 bot = Bot(token=bot_token)  # Initialize the Telegram bot
 try:
-    ethbalance = pyetherbalance.PyEtherBalance(infura_url)  # Create an pyetherbalance object
+    ethbalance = pyetherbalance.PyEtherBalance(rpc_url)  # Create an pyetherbalance object
+    
+    # Register custom tokens for Gnosis Chain
+    ethbalance.add_token('SDAI', {'symbol': 'sDAI', 'address': '0xaf204776c7245bF4147c2612BF6e5972Ee483701', 'decimals': 18, 'name': 'Savings xDAI'})
+    ethbalance.add_token('GNO', {'symbol': 'GNO', 'address': '0x9C58BAcC331c9aa871AFD802DB6379a98e80CEdb', 'decimals': 18, 'name': 'Gnosis Token'})
+
     healthcheck_status["eth_rpc_initialized"] = True
 except Exception as e:
     logger.error(f"Failed to initialize PyEtherBalance: {str(e)}")
@@ -82,11 +99,13 @@ health_check_server = HealthCheckServer(healthcheck_status, port=8000)
 
 def check_token_balance(coin, address):
     start_time = time.time()
-    # if coin is None:
-    #     return ethbalance.get_eth_balance(address)
-    # else:
     try:
-        result = ethbalance.get_token_balance(coin.upper(), address)
+        # XDAI is the native token on Gnosis Chain, query native balance
+        if coin.upper() in ["XDAI", "ETH"]:
+            result = ethbalance.get_eth_balance(address)
+        else:
+            result = ethbalance.get_token_balance(coin.upper(), address)
+            
         duration = time.time() - start_time
         
         # Check if result contains an error status

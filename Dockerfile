@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching
-COPY requirements.txt main.py config.json healthcheck.py prometheus_metrics.py /app/
+COPY requirements.txt main.py healthcheck.py prometheus_metrics.py /app/
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
