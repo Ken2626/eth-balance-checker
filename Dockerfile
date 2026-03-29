@@ -1,33 +1,18 @@
 FROM python:3.11-slim
 
-# Set working directory
+# 安装依赖和 Alloy 的下载工具
+RUN apt-get update && apt-get install -y curl gcc \
+    && curl -fsSL https://github.com/grafana/alloy/releases/download/v1.0.0/alloy-linux-amd64.zip -o alloy.zip \
+    && apt-get install -y unzip \
+    && unzip alloy.zip && mv alloy-linux-amd64 /usr/local/bin/alloy \
+    && chmod +x /usr/local/bin/alloy \
+    && rm -rf alloy.zip /var/lib/apt/lists/*
+
 WORKDIR /app
-
-# Install system dependencies including build tools for compilation
-RUN apt-get update && apt-get install -y \
-    curl \
-    gcc \
-    python3-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy requirements first for better caching
-COPY requirements.txt main.py healthcheck.py prometheus_metrics.py /app/
-
-# Install Python dependencies
+COPY requirements.txt main.py healthcheck.py prometheus_metrics.py config.alloy /app/
 RUN pip install --no-cache-dir -r requirements.txt
-
-# Clean up build dependencies to reduce image size
-RUN apt-get purge -y gcc python3-dev \
-    && apt-get autoremove -y \
-    && rm -rf /var/lib/apt/lists/*
-
-# Create a non-root user for security
-RUN useradd --create-home --shell /bin/bash app && chown -R app:app /app
-USER app
 
 EXPOSE 8000
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://127.0.0.1:8000/ || exit 1
-
-CMD ["python", "main.py"]
+# 用一段内联 shell 同时跑 Python 程序和 Alloy
+CMD /usr/local/bin/alloy run --server.http.listen-addr=127.0.0.1:12345 /app/config.alloy & python main.py
